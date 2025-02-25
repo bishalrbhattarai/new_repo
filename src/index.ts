@@ -1,32 +1,8 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import {Role as Roles ,User as Users } from './db/models';
+import { GraphQLError } from 'graphql';
 
-  // export const users = [
-  //   { id: 1, name: "John Doe", email: "john@example.com", age: 30, roleId: 1, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 2, name: "Jane Smith", email: "jane@example.com", age: 28, roleId: 2, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 3, name: "Michael Johnson", email: "michael@example.com", age: 35, roleId: 3, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 4, name: "Emily Brown", email: "emily@example.com", age: 27, roleId: 4, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 5, name: "David Wilson", email: "david@example.com", age: 32, roleId: 5, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 6, name: "Sarah Davis", email: "sarah@example.com", age: 29, roleId: 6, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 7, name: "James Miller", email: "james@example.com", age: 31, roleId: 7, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 8, name: "Lisa Anderson", email: "lisa@example.com", age: 33, roleId: 8, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 9, name: "Robert Taylor", email: "robert@example.com", age: 34, roleId: 9, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 10, name: "Jennifer Martinez", email: "jennifer@example.com", age: 26, roleId: 10, createdAt: new Date(), updatedAt: new Date() }
-  // ];
-  
-  // export const roles = [
-  //   { id: 1, roleType: "SUPER_ADMIN", active: true, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 2, roleType: "ADMIN", active: true, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 3, roleType: "MANAGER", active: true, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 4, roleType: "TEAM_LEAD", active: true, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 5, roleType: "SENIOR_DEVELOPER", active: true, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 6, roleType: "DEVELOPER", active: true, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 7, roleType: "JUNIOR_DEVELOPER", active: false, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 8, roleType: "QA_ENGINEER", active: true, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 9, roleType: "DESIGNER", active: true, createdAt: new Date(), updatedAt: new Date() },
-  //   { id: 10, roleType: "GUEST", active: false, createdAt: new Date(), updatedAt: new Date() }
-  // ];
 
 const typeDefs = `#graphql
 type User{
@@ -48,11 +24,68 @@ type Role{
     updatedAt: String!
 }
 
-type Query {
-  users:[User]
+
+
+input RoleInput{
+  roleType: String!
+  active: Boolean!
 }
 
+input UserInput{
+  name: String!
+  email: String!
+  roleId: Int!
+  age: Int!
+}
+
+type Mutation{
+  createRole(input:RoleInput):Role
+  createUser(input:UserInput):User
+}
+
+
+
+type PageInfo {
+  endCursor: String   # The cursor for the last item returned
+  hasNextPage: Boolean!  # Indicates if there are more pages
+} 
+
+type UserEdge {
+  cursor: String!   # The cursor for this specific user
+  node: User!       # The actual user data
+}
+
+type UserConnection {
+  edges: [UserEdge!]!   # A list of users and their cursors
+  pageInfo: PageInfo!   # Pagination information for the client
+}
+
+type Query {
+
+  # users:[User]
+  users(first: Int!, after: String): UserConnection
+
+}
+
+
 `;
+
+// Encode the cursor (Date to Base64)
+const encodeCursor = (date: Date) => Buffer.from(date.toISOString()).toString('base64');
+
+// Decode the cursor (Base64 back to Date)
+const decodeCursor = (cursor: string) => new Date(Buffer.from(cursor, 'base64').toString('ascii'));
+
+
+
+interface RoleInputInterface {
+  name: string
+  email: string
+  roleId: number
+  age: number
+}
+
+
 
 interface Role{
   id: string
@@ -61,7 +94,6 @@ interface Role{
   createdAt: Date
   updatedAt: Date
 }
-
 
 interface User{
   id: string
@@ -73,25 +105,96 @@ interface User{
   createdAt: Date
   updatedAt: Date
 }
+interface RoleInputInterface{
+  roleType: string
+  active: boolean
+}
+
+
+interface UserInputInterface{
+  name: string
+  email: string
+  roleId: number
+  age: number
+}
 
 const resolvers = {
-    Query:{
-        users: async () =>{
-          try {
-            
-              await Users.findAll({
-                include: [
-                  {
-                    model: Roles,
-                    as: "role"
-                  }
-                ] 
-              })
+  User:{
+      role:(parent:User)=> Roles.findByPk(parent.roleId)
+  },
+    Mutation:{
+      createUser:async(__:ParentNode,{input}:{input:UserInputInterface})=>{
+        try {
+         const createdUser = await Users.create(input)
+          return createdUser;
+        } catch (error:any) {
+          throw new GraphQLError(error)
+        }
 
-          } catch (error:any) {
-            throw new Error(error);
+      },
+    createRole:async(__:ParentNode,{input}:{input:RoleInputInterface})=>{
+      try {
+
+        
+
+        const createRole = await Roles.create(input);
+        return createRole;
+
+      } catch (error:any) {
+        throw new GraphQLError(error)
+      }
+    
+    }
+
+    },
+    Query:{
+        // users: async () =>{
+        //   try {
+            
+        //     const users =  await Users.findAll({
+        //         include: [
+        //           {
+        //             model: Roles,
+        //             as: "role"
+        //           }
+        //         ] 
+        //       })
+        //       return users
+
+        //   } catch (error:any) {
+        //     throw new GraphQLError(error);
+        //   }
+        // } 
+
+        users: async (_: any, { first, after }: { first: number; after?: string }) => {
+          try {
+            const limit = first;  // How many users to return
+            const cursorCondition = after ? { createdAt: { $gt: decodeCursor(after) } } : {};
+      
+            const users = await Users.findAll({
+              where: cursorCondition,
+              order: [['createdAt', 'ASC']], // Order by createdAt for consistency
+              limit: limit + 1,  // Fetch one extra to check if there's a next page
+              include: [{ model: Roles, as: 'role' }],
+            });
+      
+            const hasNextPage = users.length > limit;
+            const edges = hasNextPage ? users.slice(0, -1) : users;
+      
+            return {
+              edges: edges.map((user: any) => ({
+                node: user,
+                cursor: encodeCursor(user.createdAt),
+              })),
+              pageInfo: {
+                endCursor: edges.length > 0 ? encodeCursor(edges[edges.length - 1].createdAt) : null,
+                hasNextPage,
+              },
+            };
+          } catch (error: any) {
+            throw new GraphQLError(error.message);
           }
-        } 
+        },
     },
 
  
