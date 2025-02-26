@@ -1,11 +1,6 @@
 import Role from "./role";
 import User from "./user";
-
-// 1 to M relationship 
-/*
-    User Role
-    roleId on User Table
-*/
+import Post from "./post";
 
 Role.hasMany(User, {
     foreignKey:"roleId",
@@ -17,4 +12,4 @@ User.belongsTo(Role,{
     as:"role"
 })
 
-export {Role,User}
+export {Role,User,Post}
