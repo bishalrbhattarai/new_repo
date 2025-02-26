@@ -8,8 +8,32 @@ import { Op } from 'sequelize';
 //     author: `Author ${index + 1}`
 // }));
 
+import { Post } from "../../db/models"
+import { GraphQLError } from 'graphql';
+
+
+
 const resolvers = {
 
+    Query: {
+
+        posts: async (__: ParentNode, { first, after }: { first: number, after?: number }) => {
+
+            let limit = first
+
+            try {
+
+                
+
+
+            } catch (error: any) {
+                throw new GraphQLError(error)
+            }
+        }
+    }
 }
+
+
+
 
 export default resolvers
