@@ -4,6 +4,8 @@ type Post{
     title: String!
     content: String!
     author: String!
+    createdAt: String!
+      updatedAt: String!
 }
 
  type PageInfo{

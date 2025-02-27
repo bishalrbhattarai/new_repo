@@ -19,11 +19,39 @@ const resolvers = {
 
         posts: async (__: ParentNode, { first, after }: { first: number, after?: number }) => {
 
-            let limit = first
+            let limit = first || 5
 
             try {
 
-                
+               const posts = await Post.findAll({
+                    where:{
+                        id:{
+                            [Op.gt]:after || 0
+                        }
+                    },
+                    limit : limit +1
+                })
+
+                const hasNextPage = posts.length > limit
+
+                const edges = hasNextPage ? posts.slice(0, -1) : posts
+
+                const endCursor = edges[edges.length - 1].id
+
+                return {
+                    edges: edges.map((post: any) => ({
+                        node: post,
+                        cursor: post.id
+                    }),
+                    
+                    
+                    ),
+                    pageInfo: {
+                        hasNextPage,
+                        endCursor
+                    }
+                }
+
 
 
             } catch (error: any) {
